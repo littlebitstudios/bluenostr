@@ -1,0 +1,10 @@
+[project]
+name = "bluenostr"
+version = "0.1.0"
+description = "Repeat posts you make on Bluesky to Nostr"
+readme = "README.md"
+requires-python = ">=3.14"
+dependencies = ["nostr", "websockets", "pyyaml", "requests"]
+
+[project.scripts]
+bluenostr = "main:main"

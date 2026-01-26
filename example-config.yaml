@@ -1,0 +1,5 @@
+nostr-sec-key: nsec... # put your nsec key here
+bsky-subject: someone.bsky.social # this can be a handle or a did (did:plc:...)
+nostr-relays: # all relays given must have write capability; your nostr client will be able to tell you which relays can be written to
+  - wss://relay.primal.net # you must include wss://. if the relays key is missing relay.primal.net will be used, it's a popular read/write relay
+bsky-stream-endpoint: wss://jetstream1.us-east.fire.hose.cam/subscribe # you must include the wss:// and /subscribe, this jetstream endpoint will be used if none is given
