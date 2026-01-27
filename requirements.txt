@@ -1,0 +1,4 @@
+nostr
+pyyaml
+requests
+websockets
