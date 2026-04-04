@@ -47,7 +47,7 @@ def main():
         print("No Nostr relays defined. Using the default (relay.primal.net).")
         nostr_relays = ["wss://relay.primal.net"]
     else:
-        config.get("nostr-relays")
+        nostr_relays = config.get("nostr-relays")
         
     bsky_stream_endpoint = ""
     if not config.get("bsky-stream-endpoint"):
