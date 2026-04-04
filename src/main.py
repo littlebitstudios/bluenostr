@@ -90,7 +90,9 @@ def main():
             data = json.loads(message)
 
             if data.get("commit", {}).get("operation") == "create" and data["commit"].get("collection") == "app.bsky.feed.post":
-                record = data["commit"].get("record", {})
+                post_aturi = f"at://{data.get("did")}/app.bsky.feed.post/{data.get("commit").get("rkey")}"
+                post_weblink = f"https://bsky.app/profile/{data.get("did")}/post/{data.get("commit").get("rkey")}"
+                record = data.get("commit", {}).get("record", {})
                 if "reply" in record: continue
 
                 content = record.get("text", "")
