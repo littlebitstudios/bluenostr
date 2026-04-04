@@ -11,7 +11,14 @@ import time
 configFileLocation = os.path.expanduser("~/.littlebitstudios/bluenostr/config.yaml")
 
 def get_config() -> dict:
-    if os.path.exists(configFileLocation):
+    if os.environ.get("BLUENOSTR_USE_ENV") == 1:
+        return {
+            "nostr-sec-key": os.environ.get("BLUENOSTR_NSEC_KEY"),
+            "bsky-subject": os.environ.get("BLUENOSTR_BSKY_SUBJECT"),
+            "nostr-relays": os.environ.get("BLUENOSTR_RELAYS"),
+            "bsky-stream-endpoint": os.environ.get("BLUENOSTR_JETSTREAM_ENDPOINT")
+        }
+    elif os.path.exists(configFileLocation):
         with open(configFileLocation) as f:
             return yaml.safe_load(f)
     else:
