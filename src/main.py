@@ -112,20 +112,28 @@ def main():
 
                 # 3. Handle Embeds (Images)
                 embed = record.get("embed", {})
-                if embed.get("$type") == "app.bsky.embed.images":
-                    content += "\n"
-                    for img in embed.get("images", []):
-                        # Construct public CDN link for the image
-                        img_url = f"https://cdn.bsky.app/img/feed_fullsize/plain/{bsky_did}/{img['image']['ref']['$link']}@jpeg"
-                        content += f"\n{img_url}"
-
-                # 4. Handle Quote Posts
-                if embed.get("$type") == "app.bsky.embed.record":
-                    # Add the URI of the quoted post
-                    quoted_uri = embed["record"]["uri"]
-                    # Convert at:// to a web link for better compatibility
-                    web_link = quoted_uri.replace("at://", "https://bsky.app/profile/").replace("app.bsky.feed.post/", "post/")
-                    content += f"\n\nQuote: {web_link}"
+                if embed:
+                    if embed.get("$type") == "app.bsky.embed.images":
+                        content += "\n"
+                        for img in embed.get("images", []):
+                            # Construct public CDN link for the image
+                            img_url = f"https://cdn.bsky.app/img/feed_fullsize/plain/{bsky_did}/{img['image']['ref']['$link']}@jpeg"
+                            content += f"\n{img_url}"
+                    # 4. Handle Quote Posts
+                    elif embed.get("$type") == "app.bsky.embed.record":
+                        # Add the URI of the quoted post
+                        quoted_uri = embed["record"]["uri"]
+                        # Convert at:// to a web link for better compatibility
+                        web_link = quoted_uri.replace("at://", "https://bsky.app/profile/").replace("app.bsky.feed.post/", "post/")
+                        content += f"\n\nQuoted post: {web_link}"    
+                    # Handle Link Previews / GIFs
+                    elif embed.get("$type") == "app.bsky.embed.external":
+                        external = embed.get("external", {})
+                        external_uri = external.get("uri")
+                        if external_uri:
+                            content += f"\n\nLink Preview: {external_uri}"
+                    else:
+                        content += f"(Original Bluesky post contains unsupported embed of type {embed.get("$type")}. View on Bluesky: {post_weblink})"
 
                 # 5. Send to Nostr
                 if content:
