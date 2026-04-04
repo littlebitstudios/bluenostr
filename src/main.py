@@ -11,7 +11,7 @@ import time
 configFileLocation = os.path.expanduser("~/.littlebitstudios/bluenostr/config.yaml")
 
 def get_config() -> dict:
-    if os.environ.get("BLUENOSTR_USE_ENV") == 1:
+    if os.environ.get("BLUENOSTR_USE_ENV") == "1":
         return {
             "nostr-sec-key": os.environ.get("BLUENOSTR_NSEC_KEY"),
             "bsky-subject": os.environ.get("BLUENOSTR_BSKY_SUBJECT"),
