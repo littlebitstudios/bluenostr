@@ -63,6 +63,8 @@ def main():
     for relay in nostr_relays:
         nostr_relaymgr.add_relay(relay)
     nostr_relaymgr.open_connections()
+    print("Sleeping to allow relays to connect...")
+    time.sleep(1.25)
     
     nostr_account = PrivateKey.from_nsec(nsec_key)
     nostr_npub = nostr_account.public_key.bech32()
