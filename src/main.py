@@ -15,7 +15,7 @@ def get_config() -> dict:
         return {
             "nostr-sec-key": os.environ.get("BLUENOSTR_NSEC_KEY"),
             "bsky-subject": os.environ.get("BLUENOSTR_BSKY_SUBJECT"),
-            "nostr-relays": os.environ.get("BLUENOSTR_RELAYS"),
+            "nostr-relays": os.environ.get("BLUENOSTR_RELAYS").split(","),
             "bsky-stream-endpoint": os.environ.get("BLUENOSTR_JETSTREAM_ENDPOINT")
         }
     elif os.path.exists(configFileLocation):
