@@ -139,10 +139,10 @@ def main():
                 if content:
                     # Construct and Sign Note
                     event = Event(
-                        content=content,
                         public_key=nostr_account.public_key.hex(),
-                        kind=EventKind.TEXT_NOTE,
-                        created_at=int(time.time())
+                        content=content,
+                        created_at=int(time.time()),
+                        kind=EventKind.TEXT_NOTE
                     )
                     nostr_account.sign_event(event)
                     
