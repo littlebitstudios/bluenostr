@@ -1,0 +1,10 @@
+services:
+  bluenostr:
+    image: ghcr.io/littlebitstudios/bluenostr
+    restart: unless-stopped
+    environment:
+      - PYTHONUNBUFFERED=1 # makes logging work better
+      - BLUENOSTR_NSEC_KEY=nsec... # put your nsec key here
+      - BLUENOSTR_BSKY_SUBJECT=someone.bsky.social # this can be a handle or a DID (did:...)
+      - BLUENOSTR_RELAYS=wss://relay.primal.net,wss://relay.damus.io # comma-separated list of relays, you must include wss://, relay.primal.net will be used if none are given
+      - BLUENOSTR_JETSTREAM_ENDPOINT=wss://jetstream1.us-east.fire.hose.cam/subscribe # you must include the wss:// and /subscribe, jetstream1.us-east.fire.hose.cam will be used if none is given
