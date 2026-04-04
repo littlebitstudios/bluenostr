@@ -1,3 +1,5 @@
 # BlueNostr
 
-An attempt at making a Bluesky to Nostr bridge in Python. It seemed to be sending events to Nostr but they never showed up in any client.
+A Bluesky to Nostr bridge in Python.
+
+It's sending posts, but images don't work very well since I'm just including links to the Bluesky CDN.
