@@ -226,7 +226,7 @@ def main():
                         if external_uri:
                             content += f"\n\nLink Preview: {external_uri}"
                     else:
-                        content += f"(Original Bluesky post contains unsupported embed of type {embed.get("$type")}. View on Bluesky: {post_weblink})"
+                        content += f"(Original Bluesky post contains unsupported embed of type {embed.get("$type")})"
 
                 # 5. Send to Nostr
                 if content:
@@ -239,6 +239,24 @@ def main():
                     nostr_account.sign_event(event)
                     publish_to_nostr(event, nostr_relays)
                     print(f"Published to Nostr: {content[:30]}...")
+                    
+                    og_ref_event = Event(
+                        public_key=nostr_account.public_key.hex(),
+                        content=f"Post replicated by github.com/littlebitstudios/bluenostr from Bluesky. View original: {post_weblink}",
+                        created_at=int(time.time()),
+                        kind=EventKind.TEXT_NOTE,
+                        tags=[
+                            ['e', event.id, '', 'root'],
+                            ['e', event.id, '', 'reply'],
+                            ['p', event.public_key]
+                        ]
+                    )
+                    nostr_account.sign_event(og_ref_event)
+                    publish_to_nostr(og_ref_event, nostr_relays)
+                    print(f"Published original reference reply to Nostr")
+                    
+                    
+                    
             
 
 
