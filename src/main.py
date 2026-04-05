@@ -7,8 +7,94 @@ from nostr.key import PrivateKey
 import requests
 import json
 import time
+import hashlib
+import mimetypes
 
 configFileLocation = os.path.expanduser("~/.littlebitstudios/bluenostr/config.yaml")
+
+def upload_image_to_blossom(image_data: bytes, mime_type: str, nostr_account: PrivateKey, server_url: str = "https://blossom.primal.net") -> str | None:
+    """Upload image bytes to a Blossom server (BUD-01/02) and return the URL."""
+    # Compute SHA-256 hash of the file (required by Blossom)
+    file_hash = hashlib.sha256(image_data).hexdigest()
+    
+    # Build a Blossom auth event (kind 24242) for the upload
+    auth_event = Event(
+        public_key=nostr_account.public_key.hex(),
+        content="Upload image",
+        created_at=int(time.time()),
+        kind=24242,  # Blossom auth
+        tags=[
+            ["t", "upload"],
+            ["x", file_hash],
+            ["expiration", str(int(time.time()) + 60)]
+        ]
+    )
+    nostr_account.sign_event(auth_event)
+    
+    # Base64-encode the auth event for the Authorization header
+    import base64
+    auth_header = "Nostr " + base64.urlsafe_b64encode(json.dumps({
+        "id": auth_event.id,
+        "pubkey": auth_event.public_key,
+        "created_at": auth_event.created_at,
+        "kind": auth_event.kind,
+        "tags": auth_event.tags,
+        "content": auth_event.content,
+        "sig": auth_event.signature
+    }).encode()).decode()
+    
+    ext = mimetypes.guess_extension(mime_type) or ".jpg"
+    filename = f"{file_hash}{ext}"
+    
+    try:
+        resp = requests.put(
+            f"{server_url}/upload",
+            headers={
+                "Authorization": auth_header,
+                "Content-Type": mime_type,
+            },
+            data=image_data,
+            timeout=30
+        )
+        resp.raise_for_status()
+        result = resp.json()
+        # Blossom returns { url, sha256, size, type, ... }
+        return result.get("url") or f"{server_url}/{file_hash}"
+    except Exception as e:
+        print(f"Blossom upload failed: {e}")
+        return None
+
+
+def download_and_rehost_image(img_url: str, nostr_account: PrivateKey, blossom_server: str) -> str:
+    """Download an image from Bluesky CDN and reupload to Blossom. Returns the new URL or original on failure."""
+    try:
+        resp = requests.get(img_url, timeout=15)
+        resp.raise_for_status()
+        mime_type = resp.headers.get("Content-Type", "image/jpeg").split(";")[0].strip()
+        new_url = upload_image_to_blossom(resp.content, mime_type, nostr_account, blossom_server)
+        if new_url:
+            print(f"  Re-hosted image: {img_url[:40]}... -> {new_url}")
+            return new_url
+    except Exception as e:
+        print(f"Image re-host failed ({e}), falling back to original URL.")
+    return img_url
+
+def publish_to_nostr(event: Event, relays: list[str]):
+    """Publish a signed Nostr event to each relay directly over WebSocket."""
+    message = event.to_message()
+    for relay_url in relays:
+        try:
+            with connect(relay_url) as ws:
+                ws.send(message)
+                # Wait for an OK or NOTICE response (with a short timeout)
+                try:
+                    ws.settimeout(5)
+                    response = ws.recv()
+                    print(f"Relay response [{relay_url}]: {response[:80]}")
+                except Exception:
+                    pass  # timeout is fine — message was sent
+        except Exception as e:
+            print(f"Failed to publish to {relay_url}: {e}")
 
 def get_config() -> dict:
     if os.environ.get("BLUENOSTR_USE_ENV") == "1":
@@ -16,7 +102,8 @@ def get_config() -> dict:
             "nostr-sec-key": os.environ.get("BLUENOSTR_NSEC_KEY"),
             "bsky-subject": os.environ.get("BLUENOSTR_BSKY_SUBJECT"),
             "nostr-relays": os.environ.get("BLUENOSTR_RELAYS").split(","),
-            "bsky-stream-endpoint": os.environ.get("BLUENOSTR_JETSTREAM_ENDPOINT")
+            "bsky-stream-endpoint": os.environ.get("BLUENOSTR_JETSTREAM_ENDPOINT"),
+            "blossom-server": os.environ.get("BLUENOSTR_BLOSSOM_SERVER")
         }
     elif os.path.exists(configFileLocation):
         with open(configFileLocation) as f:
@@ -62,17 +149,15 @@ def main():
         bsky_stream_endpoint = "wss://jetstream1.us-east.fire.hose.cam/subscribe"
     else:
         bsky_stream_endpoint = config.get("bsky-stream-endpoint")
+        
+    blossom_server = ""
+    if not config.get("blossom-server"):
+        print("No Blossom server defined. Using the default (blossom.primal.net).")
+        blossom_server = "https://blossom.primal.net"
+    else:
+        blossom_server = config.get("blossom-server")
     
     # nostr initialization
-    
-    print("Setting up Nostr...")
-    nostr_relaymgr = RelayManager()
-    for relay in nostr_relays:
-        nostr_relaymgr.add_relay(relay)
-    nostr_relaymgr.open_connections()
-    print("Sleeping to allow relays to connect...")
-    time.sleep(1.25)
-    
     nostr_account = PrivateKey.from_nsec(nsec_key)
     nostr_npub = nostr_account.public_key.bech32()
     print(f"Signed into Nostr as {nostr_npub[:9]}...{nostr_npub[-5:]}")
@@ -90,7 +175,7 @@ def main():
         exit(1)
         
     print("Connecting to the provided Jetstream endpoint...")
-    with connect(f"{bsky_stream_endpoint}?wantedDids={bsky_did}") as stream:
+    with connect(f"{bsky_stream_endpoint}?wantedDids={bsky_did}", ping_interval=20) as stream:
         print("Connected to Jetstream. Beginning to parse.")
         while True:
             message = stream.recv()
@@ -124,7 +209,8 @@ def main():
                         content += "\n"
                         for img in embed.get("images", []):
                             # Construct public CDN link for the image
-                            img_url = f"https://cdn.bsky.app/img/feed_fullsize/plain/{bsky_did}/{img['image']['ref']['$link']}@jpeg"
+                            at_img_url = f"https://cdn.bsky.app/img/feed_fullsize/plain/{bsky_did}/{img['image']['ref']['$link']}@jpeg"
+                            img_url = download_and_rehost_image(at_img_url, nostr_account, blossom_server)
                             content += f"\n{img_url}"
                     # 4. Handle Quote Posts
                     elif embed.get("$type") == "app.bsky.embed.record":
@@ -144,7 +230,6 @@ def main():
 
                 # 5. Send to Nostr
                 if content:
-                    # Construct and Sign Note
                     event = Event(
                         public_key=nostr_account.public_key.hex(),
                         content=content,
@@ -152,19 +237,8 @@ def main():
                         kind=EventKind.TEXT_NOTE
                     )
                     nostr_account.sign_event(event)
-                    
-                    # Publish to the RelayManager's queue
-                    nostr_relaymgr.publish_event(event)
-                    print(f"Event queued for relays: {content[:30]}...")
-
-                    # THE FIX: Give the background relay thread time to send
-                    # before the main loop blocks again on stream.recv()
-                    time.sleep(1) 
-                    
-                # Correct method to check for Relay Notices/Errors
-                while nostr_relaymgr.message_pool.has_notices():
-                    notice = nostr_relaymgr.message_pool.get_notice()
-                    print(f"Relay Notice [{notice.url}]: {notice.content}")
+                    publish_to_nostr(event, nostr_relays)
+                    print(f"Published to Nostr: {content[:30]}...")
             
 
 
