@@ -201,7 +201,7 @@ def main():
                     if links:
                         content += "\n\nLinks: " + " ".join(links)
 
-                # 3. Handle Embeds (Images)
+                # 3. Handle Embeds
                 embed = record.get("embed", {})
                 if embed:
                     if embed.get("$type") == "app.bsky.embed.images":
@@ -226,6 +226,15 @@ def main():
                             content += f"\n\nLink Preview: {external_uri}"
                     else:
                         content += f"(Original Bluesky post contains unsupported embed of type {embed.get("$type")})"
+                        
+                facets:list[dict] = record.get("facets")
+                pingLinks = []
+                if facets:
+                    for facet in facets:
+                        features:list[dict] = facet.get("features")
+                        for feature in features:
+                            if feature.get("$type") == "app.bsky.richtext.facet#mention":
+                                pingLinks.append(f"https://bsky.app/profile/{feature.get("did")}")
 
                 # 5. Send to Nostr
                 if content:
@@ -238,6 +247,23 @@ def main():
                     nostr_account.sign_event(event)
                     publish_to_nostr(event, nostr_relays)
                     print(f"Published to Nostr: {content[:30]}...")
+                    
+                    if pingLinks:
+                        og_ref_event = Event(
+                            public_key=nostr_account.public_key.hex(),
+                            content=f"Pinged Bluesky users: {", ".join(pingLinks)}",
+                            created_at=int(time.time()),
+                            kind=EventKind.TEXT_NOTE,
+                            tags=[
+                                ['e', event.id, '', 'root'],
+                                ['e', event.id, '', 'reply'],
+                                ['p', event.public_key]
+                            ]
+                        )
+                        nostr_account.sign_event(og_ref_event)
+                        publish_to_nostr(og_ref_event, nostr_relays)
+                        print(f"Published original reference reply to Nostr")
+                        
                     
                     og_ref_event = Event(
                         public_key=nostr_account.public_key.hex(),
