@@ -254,11 +254,6 @@ def main():
                     nostr_account.sign_event(og_ref_event)
                     publish_to_nostr(og_ref_event, nostr_relays)
                     print(f"Published original reference reply to Nostr")
-                    
-                    
-                    
-            
-
 
 if __name__ == "__main__":
     main()
