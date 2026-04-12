@@ -262,7 +262,7 @@ def main():
                         )
                         nostr_account.sign_event(og_ref_event)
                         publish_to_nostr(og_ref_event, nostr_relays)
-                        print(f"Published original reference reply to Nostr")
+                        print(f"Published pings reply to Nostr")
                         
                     
                     og_ref_event = Event(
