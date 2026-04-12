@@ -251,7 +251,7 @@ def main():
                     if pingLinks:
                         og_ref_event = Event(
                             public_key=nostr_account.public_key.hex(),
-                            content=f"Pinged Bluesky users: {", ".join(pingLinks)}",
+                            content=f"Pinged Bluesky users:\n{"\n".join(pingLinks)}",
                             created_at=int(time.time()),
                             kind=EventKind.TEXT_NOTE,
                             tags=[
