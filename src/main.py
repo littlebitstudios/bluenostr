@@ -2,7 +2,6 @@ from websockets.sync.client import connect
 import os
 import yaml
 from nostr.event import Event, EventKind
-from nostr.relay_manager import RelayManager
 from nostr.key import PrivateKey
 import requests
 import json
