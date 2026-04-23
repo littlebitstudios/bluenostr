@@ -79,19 +79,33 @@ def download_and_rehost_image(img_url: str, nostr_account: PrivateKey, blossom_s
     return img_url
 
 def publish_to_nostr(event: Event, relays: list[str]):
-    """Publish a signed Nostr event to each relay directly over WebSocket."""
-    message = event.to_message()
+    """Publish a signed Nostr event and wait for acknowledgment."""
+    # Ensure the message is wrapped in the ["EVENT", ...] array
+    event_json = event.to_message()
+    
     for relay_url in relays:
         try:
             with connect(relay_url) as ws:
-                ws.send(message)
-                # Wait for an OK or NOTICE response (with a short timeout)
-                try:
-                    ws.settimeout(5)
-                    response = ws.recv()
-                    print(f"Relay response [{relay_url}]: {response[:80]}")
-                except Exception:
-                    pass  # timeout is fine — message was sent
+                print(f"Connected to {relay_url}, sending event...")
+                ws.send(event_json)
+                
+                # Give the relay a moment to respond
+                # We loop briefly in case the relay sends a NOTICE before the OK
+                start_time = time.time()
+                while time.time() - start_time < 5:  # 5 second total grace period
+                    try:
+                        # Use a shorter timeout for the actual recv call
+                        response = ws.recv(timeout=2)
+                        if response:
+                            print(f"Relay response [{relay_url}]: {response}")
+                            # If we get an OK or a NOTICE, we can stop waiting
+                            resp_data = json.loads(response)
+                            if resp_data[0] in ["OK", "NOTICE"]:
+                                break
+                    except Exception:
+                        # Timeout on recv, but we stay in the while loop until 5s is up
+                        continue
+                        
         except Exception as e:
             print(f"Failed to publish to {relay_url}: {e}")
 
