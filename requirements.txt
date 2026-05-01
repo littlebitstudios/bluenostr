@@ -2,3 +2,4 @@ nostr
 pyyaml
 requests
 websockets
+argparse
