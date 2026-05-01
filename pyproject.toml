@@ -1,10 +1,11 @@
 [project]
 name = "bluenostr"
-version = "1.1.2"
+version = "1.2.0"
 description = "Repeat posts you make on Bluesky to Nostr"
 readme = "README.md"
 requires-python = ">=3.14"
 dependencies = ["nostr", "websockets", "pyyaml", "requests"]
 
 [project.scripts]
-bluenostr = "main:main"
+bluenostr = "bluenostr:main"
+bluenostr-convert = "bluenostr_convert:main"
